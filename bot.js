@@ -45,11 +45,35 @@ bot.on('channel_post', async (msg) => {
       const fileId = msg.photo[msg.photo.length - 1].file_id;
 
       const lines = msg.caption.split('\n').map(l => l.trim()).filter(Boolean);
-      const title = lines[0] || 'Без названия';
-      const priceLine = lines.find(l => /цена/i.test(l)) || '';
-      const categoryLine = lines.find(l => /категори/i.test(l)) || '';
-      const price = priceLine ? priceLine.split(':').slice(1).join(':').trim() : '';
-      const category = categoryLine ? categoryLine.split(':').slice(1).join(':').trim() : 'all';
+
+// Заголовок — первая строка
+const title = lines[0] || 'Без названия';
+
+// --- Цена ---
+let price = '0';
+// ищем строку, где есть "Цена"
+let priceLine = lines.find(l => /^цена[\s:\-]/i.test(l));
+if (priceLine) {
+  // вытаскиваем только цифры
+  const match = priceLine.match(/(\d+)/);
+  if (match) price = match[1];
+}
+
+// --- Категория ---
+let category = 'all';
+// сначала ищем строку с "Категория:"
+let categoryLine = lines.find(l => /категори/i.test(l));
+if (categoryLine) {
+  category = categoryLine.split(/[:\-]/).slice(1).join(':').trim().toLowerCase();
+} else {
+  // если не нашли, ищем хэштег вида #Куртки
+  let hashtagLine = lines.find(l => l.startsWith('#'));
+  if (hashtagLine) {
+    // убираем #, берём только первую часть до пробела или @
+    category = hashtagLine.replace('#','').split(/[@\s]/)[0].toLowerCase();
+  }
+}
+
 
       const product = {
         id: Date.now().toString(),
