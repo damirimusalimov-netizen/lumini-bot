@@ -36,34 +36,62 @@ function saveProducts() {
 }
 
 // Когда приходит пост в канал
-bot.on('channel_post', const lines = msg.caption.split('\n').map(l => l.trim()).filter(Boolean);
+bot.on('channel_post', async (msg) => {
+  try {
+    if (!msg || !msg.chat) return;
+    if (String(msg.chat.username).toLowerCase() !== String(CHANNEL_USERNAME).toLowerCase()) return;
 
-// Заголовок — первая строка
-const title = lines[0] || 'Без названия';
+    if (msg.photo && msg.caption) {
+      const fileId = msg.photo[msg.photo.length - 1].file_id;
 
-// Остальные строки (кроме заголовка) анализируем
-const bodyLines = lines.slice(1);
+      const lines = msg.caption.split('\n').map(l => l.trim()).filter(Boolean);
 
-// --- Цена ---
-let price = '0';
-let priceLine = bodyLines.find(l => /цена/i.test(l));
-if (priceLine) {
-  const match = priceLine.match(/(\d+)/);
-  if (match) price = match[1];
-}
+      // Заголовок — первая строка
+      const title = lines[0] || 'Без названия';
 
-// --- Категория ---
-let category = 'all';
-let categoryLine = bodyLines.find(l => /категори/i.test(l));
-if (categoryLine) {
-  category = categoryLine.split(/[:\-]/).slice(1).join(':').trim().toLowerCase();
-} else {
-  let hashtagLine = bodyLines.find(l => l.startsWith('#'));
-  if (hashtagLine) {
-    category = hashtagLine.replace('#','').split(/[@\s]/)[0].toLowerCase();
+      // Остальные строки (кроме заголовка) анализируем
+      const bodyLines = lines.slice(1);
+
+      // --- Цена ---
+      let price = '0';
+      let priceLine = bodyLines.find(l => /цена/i.test(l));
+      if (priceLine) {
+        const match = priceLine.match(/(\d+)/);
+        if (match) price = match[1];
+      }
+
+      // --- Категория ---
+      let category = 'all';
+      let categoryLine = bodyLines.find(l => /категори/i.test(l));
+      if (categoryLine) {
+        category = categoryLine.split(/[:\-]/).slice(1).join(':').trim().toLowerCase();
+      } else {
+        let hashtagLine = bodyLines.find(l => l.startsWith('#'));
+        if (hashtagLine) {
+          category = hashtagLine.replace('#','').split(/[@\s]/)[0].toLowerCase();
+        }
+      }
+
+      const product = {
+        id: Date.now().toString(),
+        title,
+        price: price || '0',
+        category,
+        image: `/image/${fileId}`,
+        telegram_message_id: msg.message_id
+      };
+
+      products.unshift(product);
+      if (products.length > 500) products = products.slice(0, 500);
+      saveProducts();
+      console.log('✅ Added product:', product.title);
+    } else {
+      console.log('Ignored channel_post (no photo or caption).');
+    }
+  } catch (err) {
+    console.error('Error processing channel_post:', err);
   }
-}
-);
+});
 
 const app = express();
 
