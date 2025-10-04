@@ -1,16 +1,1 @@
-[
-  {
-    "id": "sample-1",
-    "title": "Пуховик Oakley",
-    "price": "4299",
-    "category": "kurtki",
-    "image": "https://via.placeholder.com/800x600.png?text=Oakley"
-  },
-  {
-    "id": "sample-2",
-    "title": "Nike ACG",
-    "price": "2500",
-    "category": "zimnyaya-obuv",
-    "image": "https://via.placeholder.com/800x600.png?text=Nike+ACG"
-  }
-]
+
