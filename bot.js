@@ -45,13 +45,13 @@ bot.on('channel_post', async (msg) => {
     if (msg.photo && msg.caption) {
       const fileId = msg.photo[msg.photo.length - 1].file_id;
 
-      // Разбиваем caption по любым переносам строк
+      // Разбиваем caption на строки
       const lines = msg.caption.split(/\r?\n+/).map(l => l.trim()).filter(Boolean);
 
       // Заголовок — первая строка
       const title = lines[0] || 'Без названия';
 
-      // Остальные строки анализируем
+      // Остальные строки
       const bodyLines = lines.slice(1);
 
       // --- Цена ---
@@ -86,7 +86,7 @@ bot.on('channel_post', async (msg) => {
       products.unshift(product);
       if (products.length > 500) products = products.slice(0, 500);
       saveProducts();
-      console.log('✅ Added product:', product.title);
+      console.log('✅ Added product:', product);
     } else {
       console.log('Ignored channel_post (no photo or caption).');
     }
@@ -94,6 +94,7 @@ bot.on('channel_post', async (msg) => {
     console.error('Error processing channel_post:', err);
   }
 });
+
 
 const app = express();
 
