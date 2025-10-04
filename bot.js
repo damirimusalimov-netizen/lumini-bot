@@ -15,6 +15,7 @@ const CHANNEL_USERNAME = (process.env.CHANNEL_USERNAME || 'LuminiShop').replace(
 const productsFile = path.join(__dirname, 'products.json');
 let products = [];
 
+// Загружаем старые товары из файла
 try {
   if (fs.existsSync(productsFile)) {
     products = JSON.parse(fs.readFileSync(productsFile, 'utf8'));
@@ -44,12 +45,13 @@ bot.on('channel_post', async (msg) => {
     if (msg.photo && msg.caption) {
       const fileId = msg.photo[msg.photo.length - 1].file_id;
 
-      const lines = msg.caption.split('\n').map(l => l.trim()).filter(Boolean);
+      // Разбиваем caption по любым переносам строк
+      const lines = msg.caption.split(/\r?\n+/).map(l => l.trim()).filter(Boolean);
 
       // Заголовок — первая строка
       const title = lines[0] || 'Без названия';
 
-      // Остальные строки (кроме заголовка) анализируем
+      // Остальные строки анализируем
       const bodyLines = lines.slice(1);
 
       // --- Цена ---
@@ -68,7 +70,7 @@ bot.on('channel_post', async (msg) => {
       } else {
         let hashtagLine = bodyLines.find(l => l.startsWith('#'));
         if (hashtagLine) {
-          category = hashtagLine.replace('#','').split(/[@\s]/)[0].toLowerCase();
+          category = hashtagLine.replace('#', '').split(/[@\s]/)[0].toLowerCase();
         }
       }
 
