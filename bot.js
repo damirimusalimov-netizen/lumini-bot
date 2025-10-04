@@ -1,11 +1,8 @@
-// Минимальный Telegram-бот + Express API для выгрузки products.json
-// Требует: установить переменную окружения BOT_TOKEN (токен от BotFather).
-// Опционально: CHANNEL_USERNAME (без @), PORT (порт сервера).
-
 const TelegramBot = require('node-telegram-bot-api');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 
 const token = process.env.BOT_TOKEN;
 if (!token) {
@@ -13,9 +10,8 @@ if (!token) {
   process.exit(1);
 }
 
-// Имя канала без собачки, по умолчанию "LuminiShop"
-const CHANNEL_USERNAME = process.env.CHANNEL_USERNAME || 'LuminiShop';
-
+// Имя канала без @
+const CHANNEL_USERNAME = (process.env.CHANNEL_USERNAME || 'LuminiShop').replace(/^@/, '');
 const productsFile = path.join(__dirname, 'products.json');
 let products = [];
 
@@ -30,6 +26,7 @@ try {
 
 const bot = new TelegramBot(token, { polling: true });
 
+// Сохраняем товары
 function saveProducts() {
   try {
     fs.writeFileSync(productsFile, JSON.stringify(products, null, 2), 'utf8');
@@ -38,18 +35,16 @@ function saveProducts() {
   }
 }
 
-// Обработка новых постов в канале (channel_post)
+// Когда приходит пост в канал
 bot.on('channel_post', async (msg) => {
   try {
     if (!msg || !msg.chat) return;
     if (String(msg.chat.username).toLowerCase() !== String(CHANNEL_USERNAME).toLowerCase()) return;
 
-    // Берём только посты с фото и подписью
     if (msg.photo && msg.caption) {
       const fileId = msg.photo[msg.photo.length - 1].file_id;
-      const fileUrl = await bot.getFileLink(fileId);
 
-      const lines = msg.caption.split('\\n').map(l => l.trim()).filter(Boolean);
+      const lines = msg.caption.split('\n').map(l => l.trim()).filter(Boolean);
       const title = lines[0] || 'Без названия';
       const priceLine = lines.find(l => /цена/i.test(l)) || '';
       const categoryLine = lines.find(l => /категори/i.test(l)) || '';
@@ -61,13 +56,12 @@ bot.on('channel_post', async (msg) => {
         title,
         price: price || '0',
         category,
-        image: fileUrl,
+        // вместо прямого URL храним "безопасный"
+        image: `/image/${fileId}`,
         telegram_message_id: msg.message_id
       };
 
-      // Добавляем в начало списка (новые вверху)
       products.unshift(product);
-      // Ограничим количество локально для простоты (например, 500)
       if (products.length > 500) products = products.slice(0, 500);
       saveProducts();
       console.log('✅ Added product:', product.title);
@@ -79,11 +73,39 @@ bot.on('channel_post', async (msg) => {
   }
 });
 
-// Express API для отдачи JSON
 const app = express();
-app.get('/products.json', (req, res) => {
-  res.json(products);
+
+// 🔹 Включаем CORS
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
 });
+
+// JSON с товарами
+app.get('/products.json', (req, res) => res.json(products));
+
+// Proxy endpoint для картинок
+app.get('/image/:fileId', async (req, res) => {
+  const fileId = req.params.fileId;
+  try {
+    const file = await bot.getFile(fileId);
+    if (!file || !file.file_path) return res.status(404).send('Not found');
+
+    const tgUrl = `https://api.telegram.org/file/bot${token}/${file.file_path}`;
+    https.get(tgUrl, (tgRes) => {
+      res.setHeader('Content-Type', tgRes.headers['content-type'] || 'image/jpeg');
+      tgRes.pipe(res);
+    }).on('error', (err) => {
+      console.error('Image proxy error:', err);
+      res.sendStatus(500);
+    });
+  } catch (err) {
+    console.error('Error in /image/:fileId:', err);
+    res.sendStatus(500);
+  }
+});
+
+// Health-check
 app.get('/health', (req, res) => res.send('OK'));
 
 const PORT = process.env.PORT || 3000;
